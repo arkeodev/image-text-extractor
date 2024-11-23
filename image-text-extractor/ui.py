@@ -5,9 +5,11 @@ Streamlit UI for the VisionOCR application.
 """
 
 import logging
+
 import streamlit as st
 from image_processor import ImageProcessor
 from ocr_agent import OcrAgent
+
 
 def main():
     """
@@ -30,34 +32,39 @@ def main():
 - Any other visible text elements
 
 Maintain the original formatting structure while ensuring clear and readable output.""",
-        height=100
+        height=100,
     )
 
     uploaded_file = st.file_uploader(
-        "Choose an image...",
-        type=["png", "jpg", "jpeg", "gif", "webp"]
+        "Choose an image...", type=["png", "jpg", "jpeg", "gif", "webp"]
     )
 
     if uploaded_file is not None and api_key:
         try:
             # Display the uploaded image
-            st.image(uploaded_file, caption='Uploaded Image.', use_column_width=True)
+            st.image(uploaded_file, caption="Uploaded Image.", use_column_width=True)
             st.write("Processing...")
 
             # Prepare the files and data for the request
-            files = {'file': (uploaded_file.name, uploaded_file.read(), uploaded_file.type)}
-            data = {'api_key': api_key, 'system_prompt': system_prompt}
+            files = {
+                "file": (uploaded_file.name, uploaded_file.read(), uploaded_file.type)
+            }
+            data = {"api_key": api_key, "system_prompt": system_prompt}
 
             # Send request to the FastAPI endpoint
-            response = requests.post("http://localhost:8000/ocr", files=files, data=data)
+            response = requests.post(
+                "http://localhost:8000/ocr", files=files, data=data
+            )
             response_json = response.json()
 
-            if response.status_code == 200 and response_json.get('success'):
-                text = response_json['data']['text']
+            if response.status_code == 200 and response_json.get("success"):
+                text = response_json["data"]["text"]
                 st.write("Extracted Text:")
                 st.text_area("OCR Output", text, height=200)
             else:
-                error_message = response_json.get('error', {}).get('message', 'Unknown error occurred.')
+                error_message = response_json.get("error", {}).get(
+                    "message", "Unknown error occurred."
+                )
                 st.error(f"Error: {error_message}")
 
         except Exception as e:
@@ -65,6 +72,7 @@ Maintain the original formatting structure while ensuring clear and readable out
             st.error(f"An error occurred: {str(e)}")
     elif not api_key:
         st.warning("Please enter your Together AI API Key.")
+
 
 if __name__ == "__main__":
     main()

@@ -10,7 +10,7 @@ import os
 LOGGING_LEVEL = "INFO"
 
 # Supported image types
-SUPPORTED_IMAGE_TYPES = ['.png', '.jpg', '.jpeg', '.gif', '.webp']
+SUPPORTED_IMAGE_TYPES = [".png", ".jpg", ".jpeg", ".gif", ".webp"]
 
 # Together AI model configuration
 TOGETHER_MODEL_NAME = "meta-llama/Llama-3.2-11B-Vision-Instruct-Turbo"

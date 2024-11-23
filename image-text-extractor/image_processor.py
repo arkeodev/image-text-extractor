@@ -4,12 +4,14 @@
 Module for processing images.
 """
 
-import os
 import base64
 import imghdr
 import logging
+import os
 from typing import Optional
+
 from config import SUPPORTED_IMAGE_TYPES
+
 
 class ImageProcessor:
     """
@@ -49,17 +51,17 @@ class ImageProcessor:
         """
         img_type = imghdr.what(image_path)
         if img_type:
-            return f'image/{img_type}'
+            return f"image/{img_type}"
         # Fallback to extension-based detection
         extension = os.path.splitext(image_path)[1].lower()
         mime_types = {
-            '.png': 'image/png',
-            '.jpg': 'image/jpeg',
-            '.jpeg': 'image/jpeg',
-            '.gif': 'image/gif',
-            '.webp': 'image/webp'
+            ".png": "image/png",
+            ".jpg": "image/jpeg",
+            ".jpeg": "image/jpeg",
+            ".gif": "image/gif",
+            ".webp": "image/webp",
         }
-        return mime_types.get(extension, 'image/jpeg')
+        return mime_types.get(extension, "image/jpeg")
 
     def encode_image(self, image_path: str) -> str:
         """
@@ -73,7 +75,7 @@ class ImageProcessor:
         """
         try:
             with open(image_path, "rb") as image_file:
-                return base64.b64encode(image_file.read()).decode('utf-8')
+                return base64.b64encode(image_file.read()).decode("utf-8")
         except Exception as e:
             logging.error(f"Error encoding image: {str(e)}")
             raise

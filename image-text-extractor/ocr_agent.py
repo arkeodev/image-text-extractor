@@ -5,10 +5,12 @@ Module for the OCR agent using Langchain and Together AI API.
 """
 
 import logging
-from typing import List, Dict
-from langchain.llms import TogetherAI
-from langchain import PromptTemplate, LLMChain
+from typing import Dict, List
+
 from config import TOGETHER_MODEL_NAME
+from langchain import LLMChain, PromptTemplate
+from langchain.llms import TogetherAI
+
 
 class OcrAgent:
     """
@@ -27,7 +29,9 @@ class OcrAgent:
         self.model_name = model_name
         self.llm = TogetherAI(model_name=self.model_name, api_key=self.api_key)
 
-    def analyze_image(self, base64_image: str, mime_type: str, system_prompt: str) -> str:
+    def analyze_image(
+        self, base64_image: str, mime_type: str, system_prompt: str
+    ) -> str:
         """
         Analyze the image using Together AI API.
 
@@ -55,10 +59,7 @@ class OcrAgent:
                 }
             ]
             # Use Langchain's LLMChain to interact with Together AI
-            prompt = PromptTemplate(
-                input_variables=["messages"],
-                template="{messages}"
-            )
+            prompt = PromptTemplate(input_variables=["messages"], template="{messages}")
             chain = LLMChain(llm=self.llm, prompt=prompt)
             response = chain.run(messages=messages)
             return response

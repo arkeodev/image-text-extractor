@@ -4,24 +4,25 @@
 FastAPI interface for the VisionOCR application.
 """
 
-import os
-import logging
 import base64
 import imghdr
+import logging
+import os
 from typing import Dict
-from fastapi import FastAPI, File, UploadFile, Form, HTTPException
-from fastapi.responses import JSONResponse
-from starlette.requests import Request
 
 from config import SUPPORTED_IMAGE_TYPES
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi.responses import JSONResponse
 from image_processor import ImageProcessor
 from ocr_agent import OcrAgent
+from starlette.requests import Request
 
 app = FastAPI()
 image_processor = ImageProcessor()
 
 # Default system prompt
 SYSTEM_PROMPT = """Convert the provided image into text. Ensure that all content from the page is included."""
+
 
 def create_response(success: bool, data: Dict = None, error: Dict = None) -> Dict:
     """
@@ -35,19 +36,16 @@ def create_response(success: bool, data: Dict = None, error: Dict = None) -> Dic
     Returns:
         Dict: Standardized JSON response.
     """
-    response = {
-        "success": success,
-        "data": data,
-        "error": error
-    }
+    response = {"success": success, "data": data, "error": error}
     return response
+
 
 @app.post("/ocr", response_model=Dict)
 async def perform_ocr(
     request: Request,
     file: UploadFile = File(...),
     api_key: str = Form(...),
-    system_prompt: str = Form(SYSTEM_PROMPT)
+    system_prompt: str = Form(SYSTEM_PROMPT),
 ) -> JSONResponse:
     """
     Endpoint to perform OCR on an uploaded image using Together AI API.
@@ -69,12 +67,12 @@ async def perform_ocr(
 
         # Read image and encode it
         contents = await file.read()
-        base64_image = base64.b64encode(contents).decode('utf-8')
+        base64_image = base64.b64encode(contents).decode("utf-8")
         mime_type = imghdr.what(None, h=contents)
         if mime_type:
-            mime_type = f'image/{mime_type}'
+            mime_type = f"image/{mime_type}"
         else:
-            mime_type = 'image/jpeg'  # Default MIME type
+            mime_type = "image/jpeg"  # Default MIME type
 
         # Initialize OCR agent
         ocr_agent = OcrAgent(api_key=api_key)
@@ -83,9 +81,7 @@ async def perform_ocr(
         text = ocr_agent.analyze_image(base64_image, mime_type, system_prompt)
 
         # Create success response
-        response_data = {
-            "text": text
-        }
+        response_data = {"text": text}
         response = create_response(success=True, data=response_data)
         return JSONResponse(content=response, status_code=200)
 
@@ -93,10 +89,7 @@ async def perform_ocr(
         # Handle known HTTP exceptions
         response = create_response(
             success=False,
-            error={
-                "code": http_exc.status_code,
-                "message": http_exc.detail
-            }
+            error={"code": http_exc.status_code, "message": http_exc.detail},
         )
         return JSONResponse(content=response, status_code=http_exc.status_code)
 
@@ -106,10 +99,6 @@ async def perform_ocr(
 
         # Create error response
         response = create_response(
-            success=False,
-            error={
-                "code": 500,
-                "message": "Internal Server Error"
-            }
+            success=False, error={"code": 500, "message": "Internal Server Error"}
         )
         return JSONResponse(content=response, status_code=500)
