@@ -10,32 +10,55 @@ import logging
 import os
 from typing import Dict
 
-from config import SUPPORTED_IMAGE_TYPES
+from config import SUPPORTED_IMAGE_TYPES, setup_logging
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import JSONResponse
 from image_processor import ImageProcessor
 from ocr_agent import OcrAgent
 from starlette.requests import Request
 
+# Initialize logger for this module
+logger = logging.getLogger(__name__)
+
 app = FastAPI()
 image_processor = ImageProcessor()
 
 # Default system prompt
-SYSTEM_PROMPT = """Convert the provided image into text. Ensure that all content from the page is included."""
+SYSTEM_PROMPT = """Extract meaningful text content from the image while following these rules:
+
+1. Focus on human-readable text content only
+2. Ignore and exclude:
+   - XML/HTML tags
+   - Script contents
+   - Debugging information
+   - Internal system identifiers
+3. For addresses and locations:
+   - Keep them in their original format
+   - Maintain proper spacing and punctuation
+4. For mixed-language content:
+   - Keep text in its original language
+   - Maintain proper character encoding
+5. Remove any duplicate content
+6. Organize the output in a clear, structured format
+7. Preserve the original formatting of:
+   - Headers and titles
+   - Main body text
+   - Lists and bullet points
+   - Contact information
+   - Geographic locations
+
+Output the text in a clean, human-readable format."""
+
+
+@app.on_event("startup")
+async def startup_event():
+    """Initialize application settings on startup."""
+    setup_logging()
+    logger.info("FastAPI application starting up...")
 
 
 def create_response(success: bool, data: Dict = None, error: Dict = None) -> Dict:
-    """
-    Create a standardized JSON response.
-
-    Args:
-        success (bool): Indicates if the request was successful.
-        data (Dict): The data to include in the response.
-        error (Dict): Error details if an error occurred.
-
-    Returns:
-        Dict: Standardized JSON response.
-    """
+    """Create a standardized JSON response."""
     response = {"success": success, "data": data, "error": error}
     return response
 
@@ -47,46 +70,27 @@ async def perform_ocr(
     api_key: str = Form(...),
     system_prompt: str = Form(SYSTEM_PROMPT),
 ) -> JSONResponse:
-    """
-    Endpoint to perform OCR on an uploaded image using Together AI API.
-
-    Args:
-        file (UploadFile): Image file uploaded by the user.
-        api_key (str): Together AI API key provided by the user.
-        system_prompt (str): Prompt to guide the model (optional).
-
-    Returns:
-        JSONResponse: JSON containing the extracted text.
-    """
+    """Process OCR request."""
     try:
-        # Validate image type
-        ext = os.path.splitext(file.filename)[1].lower()
-        if ext not in SUPPORTED_IMAGE_TYPES:
-            logging.error(f"Unsupported file type: {ext}")
-            raise HTTPException(status_code=400, detail="Unsupported file type.")
+        logger.info(f"Processing OCR request for file: {file.filename}")
 
-        # Read image and encode it
-        contents = await file.read()
-        base64_image = base64.b64encode(contents).decode("utf-8")
-        mime_type = imghdr.what(None, h=contents)
-        if mime_type:
-            mime_type = f"image/{mime_type}"
-        else:
-            mime_type = "image/jpeg"  # Default MIME type
+        # Process image using ImageProcessor
+        content = await file.read()
+        processed_image, mime_type = image_processor.process_image(content)
+        base64_image = base64.b64encode(processed_image).decode("utf-8")
+        logger.info("Processing image with OCR agent")
 
-        # Initialize OCR agent
+        # Initialize OCR agent and extract text
         ocr_agent = OcrAgent(api_key=api_key)
-
-        # Process image
-        text = ocr_agent.analyze_image(base64_image, mime_type, system_prompt)
+        text = ocr_agent.extract_text(base64_image)
 
         # Create success response
-        response_data = {"text": text}
-        response = create_response(success=True, data=response_data)
-        return JSONResponse(content=response, status_code=200)
+        response = create_response(success=True, data={"text": text})
+        logger.info("Successfully processed image")
+        return JSONResponse(content=response)
 
     except HTTPException as http_exc:
-        # Handle known HTTP exceptions
+        logger.error(f"HTTP Exception: {http_exc.detail}", exc_info=True)
         response = create_response(
             success=False,
             error={"code": http_exc.status_code, "message": http_exc.detail},
@@ -94,10 +98,7 @@ async def perform_ocr(
         return JSONResponse(content=response, status_code=http_exc.status_code)
 
     except Exception as e:
-        # Log the error
-        logging.error(f"Error processing image: {str(e)}")
-
-        # Create error response
+        logger.error(f"Unexpected error processing image: {str(e)}", exc_info=True)
         response = create_response(
             success=False, error={"code": 500, "message": "Internal Server Error"}
         )

@@ -8,15 +8,21 @@ import base64
 import imghdr
 import logging
 import os
-from typing import Optional
+from io import BytesIO
+from typing import Optional, Tuple
 
-from config import SUPPORTED_IMAGE_TYPES
+from config import SUPPORTED_IMAGE_TYPES, setup_logging
+from PIL import Image
+
+logger = logging.getLogger(__name__)
 
 
 class ImageProcessor:
     """
     Class responsible for handling image validation and encoding.
     """
+
+    MAX_IMAGE_SIZE = (1024, 1024)  # Maximum dimensions for processed images
 
     def validate_image(self, image_path: str) -> bool:
         """
@@ -78,4 +84,43 @@ class ImageProcessor:
                 return base64.b64encode(image_file.read()).decode("utf-8")
         except Exception as e:
             logging.error(f"Error encoding image: {str(e)}")
+            raise
+
+    def process_image(self, image_bytes: bytes) -> Tuple[bytes, str]:
+        """
+        Process and optimize image for OCR.
+
+        Args:
+            image_bytes: Raw image bytes
+
+        Returns:
+            Tuple[bytes, str]: Processed image bytes and MIME type
+        """
+        try:
+            # Open image with PIL
+            with Image.open(BytesIO(image_bytes)) as img:
+                # Convert to RGB if necessary
+                if img.mode not in ("RGB", "L"):
+                    img = img.convert("RGB")
+
+                # Calculate new dimensions while maintaining aspect ratio
+                width, height = img.size
+                if width > self.MAX_IMAGE_SIZE[0] or height > self.MAX_IMAGE_SIZE[1]:
+                    logger.info(
+                        f"Resizing image from {img.size} to fit within {self.MAX_IMAGE_SIZE}"
+                    )
+                    img.thumbnail(self.MAX_IMAGE_SIZE, Image.Resampling.LANCZOS)
+
+                # Save optimized image
+                output = BytesIO()
+                img.save(output, format="JPEG", quality=85, optimize=True)
+                processed_bytes = output.getvalue()
+
+                logger.info(
+                    f"Image processed: Original size: {len(image_bytes)}, New size: {len(processed_bytes)}"
+                )
+                return processed_bytes, "image/jpeg"
+
+        except Exception as e:
+            logger.error(f"Error processing image: {str(e)}", exc_info=True)
             raise

@@ -24,24 +24,20 @@ def image_data():
     }
 
 
-@patch("langchain.llms.TogetherAI")
-def test_analyze_image_success(mock_togetherai, agent, image_data):
-    mock_llm_instance = MagicMock()
-    mock_llm_instance.run.return_value = "Extracted text"
-    mock_togetherai.return_value = mock_llm_instance
-
-    text = agent.analyze_image(
-        image_data["base64_image"], image_data["mime_type"], image_data["system_prompt"]
+@patch("together.Together")
+def test_extract_text_success(mock_together, agent, image_data):
+    mock_instance = MagicMock()
+    mock_instance.chat.completions.create.return_value = MagicMock(
+        choices=[MagicMock(message=MagicMock(content="Extracted text"))]
     )
+    mock_together.return_value = mock_instance
+
+    text = agent.extract_text(image_data["base64_image"])
     assert text == "Extracted text"
 
 
-@patch("langchain.llms.TogetherAI", side_effect=Exception("API Error"))
-def test_analyze_image_failure(mock_togetherai, agent, image_data):
+@patch("together.Together", side_effect=Exception("API Error"))
+def test_extract_text_failure(mock_together, agent, image_data):
     with pytest.raises(Exception) as exc_info:
-        agent.analyze_image(
-            image_data["base64_image"],
-            image_data["mime_type"],
-            image_data["system_prompt"],
-        )
+        agent.extract_text(image_data["base64_image"])
     assert "API Error" in str(exc_info.value)

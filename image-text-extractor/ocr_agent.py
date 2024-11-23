@@ -1,15 +1,13 @@
 # ocr_agent.py
 
 """
-Module for the OCR agent using Langchain and Together AI API.
+Module for the OCR agent using Together AI API.
 """
 
 import logging
-from typing import Dict, List
 
 from config import TOGETHER_MODEL_NAME
-from langchain import LLMChain, PromptTemplate
-from langchain.llms import TogetherAI
+from together import Together
 
 
 class OcrAgent:
@@ -25,44 +23,49 @@ class OcrAgent:
             api_key (str): API key for Together AI.
             model_name (str): The Together AI model to use.
         """
-        self.api_key = api_key
+        self.client = Together(api_key=api_key)
         self.model_name = model_name
-        self.llm = TogetherAI(model_name=self.model_name, api_key=self.api_key)
 
-    def analyze_image(
-        self, base64_image: str, mime_type: str, system_prompt: str
-    ) -> str:
+    def extract_text(self, base64_image: str) -> str:
         """
-        Analyze the image using Together AI API.
+        Extract text from an image using Together AI's vision model.
 
         Args:
-            base64_image (str): Base64 encoded image string.
-            mime_type (str): MIME type of the image.
-            system_prompt (str): The prompt to guide the model.
-
+            base64_image: Base64 encoded image string
         Returns:
-            str: Extracted text from the image.
+            Extracted text from the image
         """
         try:
-            messages = [
-                {
-                    "role": "user",
-                    "content": [
-                        {"type": "text", "text": system_prompt},
-                        {
-                            "type": "image_url",
-                            "image_url": {
-                                "url": f"data:{mime_type};base64,{base64_image}"
+            response = self.client.chat.completions.create(
+                model=self.model_name,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": "Please read all the text into markdown format",
                             },
-                        },
-                    ],
-                }
-            ]
-            # Use Langchain's LLMChain to interact with Together AI
-            prompt = PromptTemplate(input_variables=["messages"], template="{messages}")
-            chain = LLMChain(llm=self.llm, prompt=prompt)
-            response = chain.run(messages=messages)
-            return response
+                            {
+                                "type": "image_url",
+                                "image_url": {
+                                    "url": f"data:image/jpeg;base64,{base64_image}"
+                                },
+                            },
+                        ],
+                    }
+                ],
+                temperature=0.7,
+                top_p=0.7,
+                top_k=50,
+                repetition_penalty=1,
+            )
+
+            # Extract the response text
+            if hasattr(response, "choices") and len(response.choices) > 0:
+                return response.choices[0].message.content
+            return ""
+
         except Exception as e:
-            logging.error(f"Error during image analysis: {str(e)}")
+            logging.error(f"Error extracting text from image: {str(e)}")
             raise
