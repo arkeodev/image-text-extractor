@@ -1,6 +1,6 @@
-# ImageTextExtractor
+# Image Text Extractor
 
-An OCR application that extracts text from images using Langchain and Streamlit.
+An OCR application that extracts text from images.
 
 ## Features
 
