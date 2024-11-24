@@ -7,12 +7,12 @@ Unit tests for ocr_agent.py
 from unittest.mock import MagicMock, patch
 
 import pytest
-from ocr_agent import OcrAgent
+from ocr_agent import TogetherOcrAgent
 
 
 @pytest.fixture
 def agent():
-    return OcrAgent(api_key="test_api_key")
+    return TogetherOcrAgent(api_key="test_api_key")
 
 
 @pytest.fixture

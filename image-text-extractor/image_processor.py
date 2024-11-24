@@ -86,41 +86,38 @@ class ImageProcessor:
             logging.error(f"Error encoding image: {str(e)}")
             raise
 
-    def process_image(self, image_bytes: bytes) -> Tuple[bytes, str]:
-        """
-        Process and optimize image for OCR.
-
-        Args:
-            image_bytes: Raw image bytes
-
-        Returns:
-            Tuple[bytes, str]: Processed image bytes and MIME type
-        """
+    def process_image(self, content: bytes) -> Tuple[bytes, str]:
+        """Process the image content."""
         try:
-            # Open image with PIL
-            with Image.open(BytesIO(image_bytes)) as img:
-                # Convert to RGB if necessary
-                if img.mode not in ("RGB", "L"):
-                    img = img.convert("RGB")
+            # Open the image
+            image = Image.open(BytesIO(content))
 
-                # Calculate new dimensions while maintaining aspect ratio
-                width, height = img.size
-                if width > self.MAX_IMAGE_SIZE[0] or height > self.MAX_IMAGE_SIZE[1]:
-                    logger.info(
-                        f"Resizing image from {img.size} to fit within {self.MAX_IMAGE_SIZE}"
-                    )
-                    img.thumbnail(self.MAX_IMAGE_SIZE, Image.Resampling.LANCZOS)
+            # Convert to RGB if necessary
+            if image.mode != "RGB":
+                image = image.convert("RGB")
 
-                # Save optimized image
-                output = BytesIO()
-                img.save(output, format="JPEG", quality=85, optimize=True)
-                processed_bytes = output.getvalue()
+            # Get original dimensions
+            width, height = image.size
+            logging.info(f"Original image dimensions: {width}x{height}")
 
-                logger.info(
-                    f"Image processed: Original size: {len(image_bytes)}, New size: {len(processed_bytes)}"
-                )
-                return processed_bytes, "image/jpeg"
+            # Resize if larger than 512x512 (reduced from 1024x1024)
+            max_size = 512
+            if width > max_size or height > max_size:
+                ratio = min(max_size / width, max_size / height)
+                new_size = (int(width * ratio), int(height * ratio))
+                logging.info(f"Resizing image from ({width}, {height}) to {new_size}")
+                image = image.resize(new_size, Image.Resampling.LANCZOS)
+
+            # Save to bytes
+            output = BytesIO()
+            image.save(output, format="JPEG", quality=85, optimize=True)
+            processed_content = output.getvalue()
+
+            logging.info(
+                f"Image processed: Original size: {len(content)}, New size: {len(processed_content)}"
+            )
+            return processed_content, "image/jpeg"
 
         except Exception as e:
-            logger.error(f"Error processing image: {str(e)}", exc_info=True)
+            logging.error(f"Error processing image: {str(e)}")
             raise
